@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes de Avance</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <!-- Librerías para exportar a PDF y gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1>Reportes de Avance</h1>
+            <p>Herramienta para crear y gestionar reportes</p>
+        </header>
+
+        <!-- Vista Principal (Menú) -->
+        <div id="home-view" class="view active">
+            <div id="home-menu">
+                <h2>Menú Principal</h2>
+                <button class="btn btn-primary" onclick="app.showView('templates-list-view')">📝 Gestionar Plantillas</button>
+                <button class="btn btn-primary" onclick="app.showView('filled-reports-list-view')">📋 Ver Reportes</button>
+            </div>
+        </div>
+
+        <!-- Vista: Lista de Plantillas -->
+        <div id="templates-list-view" class="view">
+            <button class="btn btn-secondary back-button" onclick="app.showView('home-view')">‹ Volver al Menú</button>
+            <h2>Mis Plantillas</h2>
+            <hr>
+            <div id="templates-grid" class="card-grid"></div>
+        </div>
+
+        <!-- Vista: Editor de Plantillas -->
+        <div id="template-editor-view" class="view">
+            <button class="btn btn-secondary back-button" onclick="app.showView('templates-list-view')">‹ Volver a Plantillas</button>
+            <h2 id="editor-title">Crear Nueva Plantilla</h2>
+            <div class="form-group">
+                <label for="template-name">Nombre de la Plantilla</label>
+                <input type="text" id="template-name" placeholder="Ej: Reporte Semanal">
+            </div>
+            <div id="blocks-container" ondrop="app.handleBlockDrop(event)" ondragover="app.handleBlockDragOver(event)"></div>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-add" onclick="app.addBlockToEditor()">+ Añadir Bloque</button>
+            </div>
+            <hr>
+            <button class="btn btn-primary" onclick="app.saveTemplate()">Guardar Plantilla</button>
+        </div>
+
+        <!-- Vista: Lista de Reportes Llenados -->
+        <div id="filled-reports-list-view" class="view">
+            <button class="btn btn-secondary back-button" onclick="app.showView('home-view')">‹ Volver al Menú</button>
+            <h2>Reportes Guardados</h2>
+            <div id="filled-reports-container"></div>
+        </div>
+
+        <!-- Vista: Llenar un Reporte -->
+        <div id="report-filler-view" class="view">
+            <button class="btn btn-secondary back-button" onclick="app.showView('filled-reports-list-view')">‹ Cancelar y Volver</button>
+            <h2 id="filler-title">Llenando Reporte</h2>
+
+            <section id="report-cover" class="card" contenteditable="true">
+                <h3>Portada del Reporte</h3>
+                <p>Escriba aquí la información inicial del reporte...</p>
+            </section>
+
+            <section id="kpi-section" class="card">
+                <h3>Indicadores</h3>
+                <input type="number" id="kpi-input" placeholder="Avance semanal" min="0" max="100">
+                <canvas id="kpi-chart" height="100"></canvas>
+            </section>
+
+            <section id="summary-section" class="card">
+                <h3>Resumen Semanal</h3>
+                <table id="summary-table">
+                    <thead>
+                        <tr><th>Actividad</th><th>Estado</th><th>Notas</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="photos-section" class="card">
+                <h3>Fotografías</h3>
+                <input type="file" id="photo-input" multiple accept="image/*">
+                <div id="photo-list"></div>
+            </section>
+
+            <div id="filler-blocks-container"></div>
+            <hr>
+            <button class="btn btn-primary" onclick="app.saveFilledReport()">Guardar Reporte</button>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
