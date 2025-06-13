@@ -6,6 +6,7 @@ class ReportApp {
         this.db = { templates: [], filledReports: [], kpiData: [] };
         this.jsPDF = window.jspdf.jsPDF;
         document.addEventListener('DOMContentLoaded', () => this.init());
+        this.currentPhotos = [];
     }
 
     init() {
@@ -196,6 +197,14 @@ class ReportApp {
         if (!template) return;
         this.currentTemplateId = templateId;
         document.getElementById('filler-title').innerText = `Llenando: ${template.name}`;
+        // reset general editable sections
+        document.getElementById('report-cover').innerHTML = '<h3>Portada del Reporte</h3><p>Escriba aquí la información inicial del reporte...</p>';
+        document.getElementById('kpi-input').value = '';
+        document.querySelector('#summary-table tbody').innerHTML = '<tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>';
+        document.getElementById('photo-input').value = '';
+        document.getElementById('photo-list').innerHTML = '';
+        this.currentPhotos = [];
+        document.getElementById('photo-input').onchange = (e) => this.handlePhotoUpload(e);
         const container = document.getElementById('filler-blocks-container');
         container.innerHTML = '';
         template.blocks.forEach(block => {
@@ -232,12 +241,21 @@ class ReportApp {
                 if (el) itemsData[item.id] = el.value;
             });
         });
+        const cover = document.getElementById('report-cover').innerHTML;
+        const summaryRows = [];
+        document.querySelectorAll('#summary-table tbody tr').forEach(tr => {
+            const cells = Array.from(tr.cells).map(td => td.innerText.trim());
+            if (cells.some(c => c)) summaryRows.push(cells);
+        });
         const newReport = {
             id: `filled-${Date.now()}`,
             templateId,
             templateName: template.name,
             sequentialNumber: this.db.filledReports.filter(r => r.templateId === templateId).length + 1,
             itemsData,
+            cover,
+            summary: summaryRows,
+            photos: this.currentPhotos.slice(),
             timestamp: Date.now()
         };
         this.db.filledReports.push(newReport);
@@ -284,6 +302,21 @@ class ReportApp {
         this.renderFilledReports();
     }
 
+    handlePhotoUpload(event) {
+        const list = document.getElementById('photo-list');
+        Array.from(event.target.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'photo-thumb';
+                list.appendChild(img);
+                this.currentPhotos.push(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     formatValueForPDF(type, value) {
         if (!value) return '';
         return value;
@@ -299,6 +332,16 @@ class ReportApp {
         doc.setFontSize(11);
         doc.setTextColor(100);
         let yPos = 35;
+        // Cover section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Portada', 14, yPos);
+        doc.setFont(undefined, 'normal');
+        yPos += 7;
+        const coverText = report.cover.replace(/<[^>]+>/g, '');
+        const split = doc.splitTextToSize(coverText, 180);
+        doc.text(split, 14, yPos);
+        yPos += split.length * 6 + 4;
         template.blocks.forEach(block => {
             doc.setFontSize(14);
             doc.setFont(undefined, 'bold');
@@ -312,6 +355,29 @@ class ReportApp {
             yPos = doc.autoTable.previous.finalY + 10;
             if (yPos > 260) { doc.addPage(); yPos = 20; }
         });
+
+        // Summary table
+        if (report.summary && report.summary.length) {
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Resumen Semanal', 14, yPos);
+            yPos += 7;
+            doc.autoTable({ startY: yPos, head: [['Actividad','Estado','Notas']], body: report.summary, styles:{fontSize:9, cellPadding:2}, headStyles:{fillColor:[44,62,80], textColor:[255,255,255], fontStyle:'bold'}, margin:{left:14,right:14} });
+            yPos = doc.autoTable.previous.finalY + 10;
+        }
+
+        // Photos
+        if (report.photos && report.photos.length) {
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Fotografías', 14, yPos);
+            yPos += 5;
+            report.photos.forEach((imgData, idx) => {
+                if (yPos > 250) { doc.addPage(); yPos = 20; }
+                doc.addImage(imgData, 'PNG', 14, yPos, 60, 45);
+                yPos += 50;
+            });
+        }
         if (this.db.kpiData.length) {
             const canvas = document.createElement('canvas');
             new Chart(canvas.getContext('2d'), { type:'line', data:{ labels:this.db.kpiData.map((_,i)=>`Semana ${i+1}`), datasets:[{label:'KPI', data:this.db.kpiData, borderColor:'#3498db'}] } });

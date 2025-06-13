@@ -207,3 +207,18 @@ select {
 .confirm-box { background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 1001; text-align: center; max-width: 400px; width: 90%; }
 .confirm-box p { font-size: 1.1em; margin-bottom: 25px; color: var(--primary-color); }
 .confirm-box div { display: flex; justify-content: center; gap: 15px; }
+
+/* Photo previews */
+#photo-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+.photo-thumb {
+    width: 120px;
+    height: 90px;
+    object-fit: cover;
+    border: 1px solid var(--medium-gray);
+    border-radius: 4px;
+}
