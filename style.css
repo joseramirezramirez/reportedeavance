@@ -1,0 +1,74 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f5f5f5;
+}
+
+#main-menu {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    background: #2c3e50;
+    padding: 1rem;
+}
+
+#main-menu button {
+    background: #3498db;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#main-menu button:hover {
+    background: #2980b9;
+}
+
+main {
+    max-width: 900px;
+    margin: auto;
+    padding: 1rem;
+}
+
+.card {
+    background: #fff;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#photo-list img {
+    max-width: 100px;
+    margin: 5px;
+}
+
+@media (max-width: 600px) {
+    #main-menu {
+        flex-direction: column;
+    }
+}
+
+button#save-report, button#generate-pdf {
+    margin: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button#generate-pdf {
+    background: #e67e22;
+}
+
+button#save-report:hover {
+    background: #1e8449;
+}
+
+button#generate-pdf:hover {
+    background: #d35400;
+}
