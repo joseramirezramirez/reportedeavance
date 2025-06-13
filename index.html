@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <title>Report de Avance</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <nav id="main-menu">
+        <button id="edit-templates-btn">Editar Plantillas</button>
+        <button id="fill-report-btn">Llenar Reporte</button>
+        <button id="view-reports-btn">Ver Reportes</button>
+    </nav>
+    <main>
+        <section id="report-cover" class="card" contenteditable="true">
+            <h2>Portada del Reporte</h2>
+            <p>Escriba aquí la información inicial del reporte...</p>
+        </section>
+        <section id="kpi-section" class="card">
+            <h2>Indicadores</h2>
+            <canvas id="kpi-chart" height="100"></canvas>
+        </section>
+        <section id="summary-section" class="card">
+            <h2>Resumen Semanal</h2>
+            <table id="summary-table">
+                <thead>
+                    <tr><th>Actividad</th><th>Estado</th><th>Notas</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+                </tbody>
+            </table>
+        </section>
+        <section id="photos-section" class="card">
+            <h2>Fotografías</h2>
+            <input type="file" id="photo-input" multiple accept="image/*">
+            <div id="photo-list"></div>
+        </section>
+    </main>
+    <button id="save-report">Guardar Reporte</button>
+    <button id="generate-pdf">Generar PDF</button>
+    <script src="app.js"></script>
+</body>
+</html>
