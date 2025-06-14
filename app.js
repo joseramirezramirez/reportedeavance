@@ -41,8 +41,9 @@ class ReportApp {
 
     createDefaultTemplate() {
         const defaultTemplate = {
-            id: `template-${Date.now()}`,
-            name: 'Plantilla Básica',
+            id: 'template-maestra',
+            name: 'Plantilla Maestra',
+            isDefault: true,
             blocks: [
                 {
                     id: `block-${Date.now()}-1`,
@@ -74,7 +75,7 @@ class ReportApp {
                 <div class="card-actions">
                     <button class="btn btn-primary" onclick="app.fillReport('${t.id}')">Llenar</button>
                     <button class="btn btn-secondary" onclick="app.editTemplate('${t.id}')">Editar</button>
-                    <button class="btn btn-danger" onclick="app.deleteTemplate('${t.id}')">Eliminar</button>
+                    ${t.isDefault ? '' : `<button class="btn btn-danger" onclick="app.deleteTemplate('${t.id}')">Eliminar</button>`}
                 </div>`;
             grid.appendChild(card);
         });
@@ -94,12 +95,23 @@ class ReportApp {
     editTemplate(id) {
         const template = this.db.templates.find(t => t.id === id);
         if (!template) return;
-        this.currentTemplateId = id;
-        document.getElementById('editor-title').innerText = 'Editar Plantilla';
-        document.getElementById('template-name').value = template.name;
+
+        let editable = JSON.parse(JSON.stringify(template));
+        if (template.isDefault) {
+            // editing master creates a copy
+            editable.id = `template-${Date.now()}`;
+            editable.name = `${template.name} (Copia)`;
+            editable.isDefault = false;
+            this.currentTemplateId = null;
+            document.getElementById('editor-title').innerText = 'Crear Plantilla desde Maestra';
+        } else {
+            this.currentTemplateId = id;
+            document.getElementById('editor-title').innerText = 'Editar Plantilla';
+        }
+        document.getElementById('template-name').value = editable.name;
         const container = document.getElementById('blocks-container');
         container.innerHTML = '';
-        template.blocks.forEach(b => container.appendChild(this.createBlockElement(b)));
+        editable.blocks.forEach(b => container.appendChild(this.createBlockElement(b)));
         this.showView('template-editor-view');
     }
 
@@ -173,9 +185,12 @@ class ReportApp {
         });
         if (this.currentTemplateId) {
             const idx = this.db.templates.findIndex(t => t.id === this.currentTemplateId);
-            if (idx !== -1) this.db.templates[idx] = { id: this.currentTemplateId, name, blocks };
+            if (idx !== -1) {
+                const isDefault = !!this.db.templates[idx].isDefault;
+                this.db.templates[idx] = { id: this.currentTemplateId, name, blocks, isDefault };
+            }
         } else {
-            this.db.templates.push({ id: `template-${Date.now()}`, name, blocks });
+            this.db.templates.push({ id: `template-${Date.now()}`, name, blocks, isDefault: false });
         }
         this.saveData();
         this.showView('templates-list-view');
@@ -186,24 +201,78 @@ class ReportApp {
     }
 
     deleteTemplate(id) {
-        this.db.templates = this.db.templates.filter(t => t.id !== id);
-        this.db.filledReports = this.db.filledReports.filter(r => r.templateId !== id);
+        const t = this.db.templates.find(tp => tp.id === id);
+        if (t && t.isDefault) return;
+        const idx = this.db.templates.findIndex(tp => tp.id === id);
+        if (idx !== -1) {
+            this.db.templates.splice(idx, 1);
+            // remove reports and their KPI entries
+            const reportsToRemove = this.db.filledReports.filter(r => r.templateId === id);
+            reportsToRemove.forEach(rep => {
+                const rIdx = this.db.filledReports.findIndex(rr => rr.id === rep.id);
+                if (rIdx !== -1) {
+                    this.db.filledReports.splice(rIdx, 1);
+                    this.db.kpiData.splice(rIdx, 1);
+                }
+            });
+        }
         this.saveData();
         this.renderTemplatesList();
+        this.updateChart();
     }
 
-    fillReport(templateId) {
-        const template = this.db.templates.find(t => t.id === templateId);
+    fillReport(id, isEdit=false) {
+        let template;
+        let report = null;
+        if (isEdit) {
+            report = this.db.filledReports.find(r => r.id === id);
+            if (!report) return;
+            template = this.db.templates.find(t => t.id === report.templateId);
+            this.currentFilledReportId = id;
+        } else {
+            template = this.db.templates.find(t => t.id === id);
+            this.currentFilledReportId = null;
+        }
         if (!template) return;
-        this.currentTemplateId = templateId;
+        this.currentTemplateId = template.id;
         document.getElementById('filler-title').innerText = `Llenando: ${template.name}`;
         // reset general editable sections
-        document.getElementById('report-cover').innerHTML = '<h3>Portada del Reporte</h3><p>Escriba aquí la información inicial del reporte...</p>';
-        document.getElementById('kpi-input').value = '';
-        document.querySelector('#summary-table tbody').innerHTML = '<tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>';
+        if (isEdit && report) {
+            document.getElementById('report-cover').innerHTML = report.cover;
+            document.getElementById('kpi-input').value = report.kpi != null ? report.kpi : '';
+            const tbody = document.querySelector('#summary-table tbody');
+            tbody.innerHTML = '';
+            if (report.summary && report.summary.length) {
+                report.summary.forEach(row => {
+                    const tr = document.createElement('tr');
+                    row.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.contentEditable = 'true';
+                        td.innerText = cell;
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>';
+            }
+            const photoList = document.getElementById('photo-list');
+            photoList.innerHTML = '';
+            this.currentPhotos = report.photos ? report.photos.slice() : [];
+            this.currentPhotos.forEach(p => {
+                const img = document.createElement('img');
+                img.src = p;
+                img.className = 'photo-thumb';
+                photoList.appendChild(img);
+            });
+        } else {
+            document.getElementById('report-cover').innerHTML = '<h3>Portada del Reporte</h3><p>Escriba aquí la información inicial del reporte...</p>';
+            document.getElementById('kpi-input').value = '';
+            document.querySelector('#summary-table tbody').innerHTML = '<tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>';
+            document.getElementById('photo-list').innerHTML = '';
+            this.currentPhotos = [];
+        }
         document.getElementById('photo-input').value = '';
-        document.getElementById('photo-list').innerHTML = '';
-        this.currentPhotos = [];
         document.getElementById('photo-input').onchange = (e) => this.handlePhotoUpload(e);
         const container = document.getElementById('filler-blocks-container');
         container.innerHTML = '';
@@ -217,11 +286,20 @@ class ReportApp {
                 itemDiv.className = 'checklist-item item-full-width';
                 itemDiv.dataset.itemId = item.id;
                 itemDiv.dataset.itemType = item.type;
-                let control = `<input type="text" class="item-value">`;
-                if (item.type === 'note') control = `<textarea class="item-value"></textarea>`;
-                if (item.type === 'image') control = `<input type="file" class="item-value" accept="image/*">`;
-                if (item.type === 'kpi') control = `<input type="number" class="item-value">`;
-                if (item.type === 'table') control = `<textarea class="item-value"></textarea>`;
+                let value = isEdit && report && report.itemsData ? report.itemsData[item.id] : '';
+                let control = `<input type="text" class="item-value" value="${value || ''}">`;
+                if (item.type === 'note') control = `<textarea class="item-value">${value || ''}</textarea>`;
+                if (item.type === 'image') {
+                    control = `<input type="file" class="item-value" accept="image/*">`;
+                    if (value) {
+                        const img = document.createElement('img');
+                        img.src = value;
+                        img.className = 'photo-thumb';
+                        itemDiv.appendChild(img);
+                    }
+                }
+                if (item.type === 'kpi') control = `<input type="number" class="item-value" value="${value || ''}">`;
+                if (item.type === 'table') control = `<textarea class="item-value">${value || ''}</textarea>`;
                 itemDiv.innerHTML = `<p><strong>${item.name}</strong></p>${control}`;
                 itemContainer.appendChild(itemDiv);
             });
@@ -247,29 +325,35 @@ class ReportApp {
             const cells = Array.from(tr.cells).map(td => td.innerText.trim());
             if (cells.some(c => c)) summaryRows.push(cells);
         });
-        const newReport = {
-            id: `filled-${Date.now()}`,
-            templateId,
-            templateName: template.name,
-            sequentialNumber: this.db.filledReports.filter(r => r.templateId === templateId).length + 1,
-            itemsData,
-            cover,
-            summary: summaryRows,
-            photos: this.currentPhotos.slice(),
-            timestamp: Date.now()
-        };
-        this.db.filledReports.push(newReport);
         const kpiInput = document.querySelector('#kpi-section input[type="number"]');
-        if (kpiInput && kpiInput.value) {
-            const val = parseFloat(kpiInput.value);
-            if (!isNaN(val)) {
-                this.db.kpiData.push(val);
-                this.updateChart();
+        const val = kpiInput && kpiInput.value ? parseFloat(kpiInput.value) : NaN;
+        if (this.currentFilledReportId) {
+            const idx = this.db.filledReports.findIndex(r => r.id === this.currentFilledReportId);
+            if (idx !== -1) {
+                const prev = this.db.filledReports[idx];
+                this.db.filledReports[idx] = { ...prev, itemsData, cover, summary: summaryRows, photos: this.currentPhotos.slice(), kpi: isNaN(val)? null : val, timestamp: Date.now() };
+                this.db.kpiData[idx] = isNaN(val) ? null : val;
             }
+        } else {
+            const newReport = {
+                id: `filled-${Date.now()}`,
+                templateId,
+                templateName: template.name,
+                sequentialNumber: this.db.filledReports.filter(r => r.templateId === templateId).length + 1,
+                itemsData,
+                cover,
+                summary: summaryRows,
+                photos: this.currentPhotos.slice(),
+                kpi: isNaN(val)? null : val,
+                timestamp: Date.now()
+            };
+            this.db.filledReports.push(newReport);
+            this.db.kpiData.push(isNaN(val)? null : val);
         }
+        this.updateChart();
         this.saveData();
         this.showView('filled-reports-list-view');
-    }
+        }
 
     renderFilledReports() {
         const container = document.getElementById('filled-reports-container');
@@ -290,6 +374,7 @@ class ReportApp {
             <h4>Reporte #${report.sequentialNumber}</h4>
             <p><strong>Plantilla:</strong> ${report.templateName}</p>
             <div class="card-actions">
+                <button class="btn btn-primary" onclick="app.fillReport('${report.id}', true)">Editar</button>
                 <button class="btn btn-secondary" onclick="app.exportToPDF('${report.id}')">PDF</button>
                 <button class="btn btn-danger" onclick="app.deleteFilledReport('${report.id}')">Eliminar</button>
             </div>`;
@@ -297,9 +382,14 @@ class ReportApp {
     }
 
     deleteFilledReport(id) {
-        this.db.filledReports = this.db.filledReports.filter(r => r.id !== id);
+        const idx = this.db.filledReports.findIndex(r => r.id === id);
+        if (idx !== -1) {
+            this.db.filledReports.splice(idx, 1);
+            this.db.kpiData.splice(idx, 1);
+        }
         this.saveData();
         this.renderFilledReports();
+        this.updateChart();
     }
 
     handlePhotoUpload(event) {
